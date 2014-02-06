@@ -72,7 +72,7 @@ The extension will automatically render the child views into `parent.container` 
 </div>
 ```
 
-Child views are regular views, they don't need to do anything special to work with a parent. The only thing the extension does is ensure that events from the child view will bubble to the parent. Unfortunately, to do this it has to add a `_viewparentchild` property onto each child instance. It also adds a `parent` attribute to every child view with a reference to the parent `Y.View` instance.
+Child views are regular views, they don't need to do anything special to work with a parent. The only thing the extension does is ensure that events from the child view will bubble to the parent. It adds a `parent` attribute to every child view with a reference to the parent `Y.View` instance.
 
 You could potentially also nest parents to achieve a multi-level heirarchy of views but that definitely hasn't been tested & things might go crazy.
 
