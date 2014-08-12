@@ -1,28 +1,33 @@
 YUI.add("extension-view-parent", function(Y) {
     "use strict";
     
-    var ViewParent = function() {};
+    var ViewParent = function() {},
+        classRegex = /\s+/;
     
     ViewParent.ATTRS = {
-        children : null
+        children  : {
+            value : false
+        }
     };
     
     ViewParent.prototype = {
-        
-        initializer: function() {
+        initializer : function() {
             this._viewParentHandles = [
+                //Make sure new child views bubble
                 this.on("childrenChange", this._childrenChange, this),
                 
+                //Stick children into rendered DOM after the parent has rendered itself
                 Y.Do.after(this.renderChildren, this, "render", this)
             ];
-            
-            // start off with initial state
+
+            //catch initial values of views ATTR
             this._childrenChange({
                 newVal : this.get("children")
             });
         },
         
-        destructor: function() {
+        //destroy child views & clean up all handles
+        destructor : function() {
             Y.Object.each(this.get("children"), function(view) {
                 view.destroy();
             });
@@ -32,48 +37,63 @@ YUI.add("extension-view-parent", function(Y) {
             this._viewParentHandles = null;
         },
         
-        renderChild: function(name, view) {
-            var node = this.get("container").one("[data-child=\"" + name + "\"]");
+        renderChild : function(name, view) {
+            var parent = this.get("container"),
+                slot   = parent.one("[data-child=\"" + name + "\"]"),
+                el, classes, css;
             
-            if(!node) {
+            if(!slot) {
                 return;
             }
-                
-            view.render();
             
-            node.replace(
-                view.get("container").addClass("child " + name + " " + node.get("className"))
-            );
+            view.render();
+
+            el      = view.get("container");
+            classes = el.get("className");
+
+            // Ensure we don't double up on any classes
+            css = [ "child", name, view.name ].concat(slot.get("className").split(classRegex));
+            css = Y.Array.dedupe(css).filter(function(str) {
+                return str.length || classes.indexOf(str) === -1;
+            });
+
+            if(css.length) {
+                el.addClass(css.join(" "));
+            }
+            
+            slot.replace(el);
         },
         
-        renderChildren: function() {
+        //render all the child views & inject them into the placeholders
+        renderChildren : function() {
             var children = this.get("children"),
-                child;
+                name;
             
             if(!children) {
                 return;
             }
-                
+            
             this.get("container").addClass("parent");
-                
-            for(child in children) {
-                this.renderChild(child, children[child]);
+            
+            for(name in children) {
+                this.renderChild(name, children[name]);
             }
         },
         
-        _childrenChange: function(e) {
-            var self = this;
+        //make sure custom events from child views bubble to parent view
+        _childrenChange : function(e) {
+            var self = this,
+                id   = Y.stamp(this);
             
-            Y.Object.each(e.newVal, function(child) {
-                // already stamped, bail
-                if("_viewparentchild" in child) {
+            Y.Object.each(e.newVal, function(view) {
+                if(id in view) {
                     return;
                 }
+
+                view[id] = true;
                 
-                child._viewparentchild = true;
-                
-                child.set("parent", self);
-                child.addTarget(self);
+                view.set("parent", self);
+                view.addTarget(self);
             });
         }
     };
@@ -81,8 +101,7 @@ YUI.add("extension-view-parent", function(Y) {
     Y.namespace("Extensions").ViewParent = ViewParent;
     
 }, "@VERSION@", {
-    requires: [
-        // YUI
+    requires : [
         "view",
         "event-custom"
     ]
